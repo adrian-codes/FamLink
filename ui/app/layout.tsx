@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '../styles/globals.css';
+import { AuthProvider } from './context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'FamLink - Family Management Made Simple',
@@ -18,7 +19,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-inter">{children}</body>
+      <body className="font-inter">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
