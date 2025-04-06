@@ -19,7 +19,7 @@ export default function Login() {
     setSuccess('');
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -41,11 +41,7 @@ export default function Login() {
       }, 1000);
     } catch (err: any) {
       console.error('Fetch error:', err);
-      if (err.message.includes('Failed to fetch')) {
-        setError('Unable to connect to the server. Please ensure the server is running and try again.');
-      } else {
-        setError(err.message || 'An unexpected error occurred. Please try again.');
-      }
+      setError(err.message || 'Failed to connect to the server. Please try again later.');
     }
   };
 
