@@ -25,3 +25,10 @@ def get_my_family(db: Session = Depends(get_db), current_user: User = Depends(ge
     if not family:
         raise HTTPException(status_code=404, detail="Family not found")
     return family
+
+@router.get("/{family_id}/members", response_model=list[UserOut])
+def get_family_members(family_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user.family_id or current_user.family_id != family_id:
+        raise HTTPException(status_code=403, detail="You are not authorized to view this family's members")
+    members = db.query(User).filter(User.family_id == family_id).all()
+    return members

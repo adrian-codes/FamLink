@@ -13,8 +13,9 @@ def create_chore(chore: ChoreCreate, db: Session = Depends(get_db), current_user
         raise HTTPException(status_code=400, detail="You must be part of a family to create a chore")
     if chore.family_id != current_user.family_id:
         raise HTTPException(status_code=403, detail="You can only create chores for your family")
-    if current_user.id != chore.assigned_to_id:
-        raise HTTPException(status_code=403, detail="You can only assign chores to yourself or family members")
+    assigned_user = db.query(User).filter(User.id == chore.assigned_to_id, User.family_id == current_user.family_id).first()
+    if not assigned_user:
+        raise HTTPException(status_code=403, detail="Assigned user must be a member of your family")
     db_chore = Chore(**chore.dict())
     db.add(db_chore)
     db.commit()
@@ -34,6 +35,9 @@ def update_chore(chore_id: int, chore: ChoreCreate, db: Session = Depends(get_db
         raise HTTPException(status_code=400, detail="You must be part of a family to update chores")
     if chore.family_id != current_user.family_id:
         raise HTTPException(status_code=403, detail="You can only update chores for your family")
+    assigned_user = db.query(User).filter(User.id == chore.assigned_to_id, User.family_id == current_user.family_id).first()
+    if not assigned_user:
+        raise HTTPException(status_code=403, detail="Assigned user must be a member of your family")
     db_chore = db.query(Chore).filter(Chore.id == chore_id, Chore.family_id == current_user.family_id).first()
     if not db_chore:
         raise HTTPException(status_code=404, detail="Chore not found or not authorized")
