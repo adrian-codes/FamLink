@@ -10,6 +10,7 @@ class FamilyCreate(FamilyBase):
 
 class FamilyOut(FamilyBase):
     id: int
+    admin_id: Optional[int]
 
     class Config:
         from_attributes = True
@@ -37,6 +38,11 @@ class Login(BaseModel):
     username: str
     password: str
 
+class AddFamilyMember(BaseModel):
+    username: str
+    email: EmailStr
+    temporary_password: str
+
 class ChoreBase(BaseModel):
     title: str
     description: str | None = None
@@ -51,6 +57,23 @@ class ChoreOut(ChoreBase):
     status: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class EventBase(BaseModel):
+    title: str
+    description: str | None = None
+    family_id: int
+    start_time: datetime
+    end_time: datetime
+
+class EventCreate(EventBase):
+    pass
+
+class EventOut(EventBase):
+    id: int
+    created_at: datetime
 
     class Config:
         from_attributes = True
