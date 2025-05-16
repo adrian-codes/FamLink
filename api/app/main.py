@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import auth, chores, families
+from .routes import auth, chores, families, events
 from .database import Base, engine
 
 app = FastAPI(title="FamLink")
@@ -21,3 +21,4 @@ Base.metadata.create_all(bind=engine)
 app.include_router(auth.router)
 app.include_router(chores.router)
 app.include_router(families.router)
+app.include_router(events.router)
