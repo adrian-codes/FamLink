@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
+import '../../styles/calendar.css';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import moment from 'moment';
 
 interface Chore {
   id: number;
@@ -22,12 +26,15 @@ interface Event {
   start_time: string;
   end_time: string;
   created_at: string;
+  assignees: { id: number; username: string }[] | null;
 }
 
 interface FamilyMember {
   id: number;
   username: string;
 }
+
+const localizer = momentLocalizer(moment);
 
 export default function Dashboard() {
   const { token, user, family, logout } = useAuth();
@@ -36,7 +43,7 @@ export default function Dashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [newChore, setNewChore] = useState({ title: '', description: '', family_id: 0, assigned_to_id: 0 });
-  const [newEvent, setNewEvent] = useState({ title: '', description: '', family_id: 0, start_time: '', end_time: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', description: '', family_id: 0, start_time: '', end_time: '', assignee_ids: [] as number[] });
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -109,11 +116,11 @@ export default function Dashboard() {
       });
       if (!response.ok) throw new Error('Failed to fetch family details');
       const familyData = await response.json();
-      setIsAdmin(familyData.admin_id && user!.id === familyData.admin_id);  // Handle null admin_id
+      setIsAdmin(familyData.admin_id != null && user!.id === familyData.admin_id);
     } catch (err: any) {
       setError(err.message);
     }
-};
+  };
 
   const handleCreateChore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +156,7 @@ export default function Dashboard() {
       if (!response.ok) throw new Error('Failed to create event');
       const data = await response.json();
       setEvents([...events, data]);
-      setNewEvent({ title: '', description: '', family_id: family!.id, start_time: '', end_time: '' });
+      setNewEvent({ title: '', description: '', family_id: family!.id, start_time: '', end_time: '', assignee_ids: [] });
     } catch (err: any) {
       setError(err.message);
     }
@@ -216,11 +223,29 @@ export default function Dashboard() {
     return member ? member.username : 'Unknown';
   };
 
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(option => parseInt(option.value));
+    if (selectedOptions.includes(-1)) {
+      setNewEvent({ ...newEvent, assignee_ids: familyMembers.map(member => member.id) });
+    } else {
+      setNewEvent({ ...newEvent, assignee_ids: selectedOptions });
+    }
+  };
+
+  const calendarEvents = events.map(event => ({
+    id: event.id,
+    title: `${event.title} (${event.assignees && event.assignees.length > 0 ? event.assignees.map(a => a.username).join(', ') : 'No assignees'})`,
+    start: new Date(event.start_time),
+    end: new Date(event.end_time),
+  }));
+
   if (!token || !user) {
+    router.push('/login');
     return null;
   }
 
   if (!family) {
+    router.push('/families/new');
     return null;
   }
 
@@ -232,7 +257,7 @@ export default function Dashboard() {
             <h1 className="text-4xl font-extrabold text-gray-900">Welcome to Your FamLink Dashboard</h1>
             <p className="mt-4 text-lg text-gray-600">Manage your family’s chores, schedules, and events here.</p>
           </div>
-          <div className="">
+          <div className="space-x-2">
             {isAdmin && (
               <Link href="/families/manage" className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-blue-600 transition">
                 Manage Family
@@ -240,7 +265,7 @@ export default function Dashboard() {
             )}
             <button
               onClick={handleLogout}
-              className="bg-red-500 text-white font-semibold py-2 px-4 mt-4 rounded-lg shadow-lg hover:bg-red-600 transition"
+              className="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-red-600 transition"
             >
               Logout
             </button>
@@ -313,6 +338,23 @@ export default function Dashboard() {
                 />
               </div>
               <div>
+                <label htmlFor="assignees" className="block text-sm font-medium text-gray-700">Assignees</label>
+                <select
+                  id="assignees"
+                  multiple
+                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={newEvent.assignee_ids}
+                  onChange={handleAssigneeChange}
+                >
+                  <option value={-1}>Whole Family</option>
+                  {familyMembers.map(member => (
+                    <option key={member.id} value={member.id}>{member.username}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
                 <label htmlFor="start_time" className="block text-sm font-medium text-gray-700">Start Time</label>
                 <input
                   id="start_time"
@@ -323,8 +365,6 @@ export default function Dashboard() {
                   onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="end_time" className="block text-sm font-medium text-gray-700">End Time</label>
                 <input
@@ -336,15 +376,15 @@ export default function Dashboard() {
                   onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
                 />
               </div>
-              <div>
-                <label htmlFor="event_description" className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  id="event_description"
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newEvent.description || ''}
-                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                />
-              </div>
+            </div>
+            <div>
+              <label htmlFor="event_description" className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea
+                id="event_description"
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newEvent.description || ''}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+              />
             </div>
             <button
               type="submit"
@@ -390,7 +430,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">Family Schedule</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Family Schedule (List View)</h2>
           {events.length === 0 ? (
             <p className="mt-4 text-gray-600">No events yet. Add one above!</p>
           ) : (
@@ -400,6 +440,9 @@ export default function Dashboard() {
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
                     <p className="text-sm text-gray-600">{event.description || 'No description'}</p>
+                    <p className="text-xs text-gray-500">
+                      Assignees: {(event.assignees && event.assignees.length > 0) ? event.assignees.map(assignee => assignee.username).join(', ') : 'None'}
+                    </p>
                     <p className="text-xs text-gray-500">
                       From: {new Date(event.start_time).toLocaleString()} To: {new Date(event.end_time).toLocaleString()}
                     </p>
@@ -415,6 +458,21 @@ export default function Dashboard() {
               ))}
             </ul>
           )}
+        </div>
+
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-gray-900">Family Schedule (Calendar View)</h2>
+          <div className="bg-white p-6 rounded-lg shadow-md mt-4">
+            <Calendar
+              localizer={localizer}
+              events={calendarEvents}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: 500 }}
+              defaultView="month"
+              onSelectEvent={(event) => alert(`Event: ${event.title}`)}
+            />
+          </div>
         </div>
       </div>
     </div>

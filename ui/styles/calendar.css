@@ -1,0 +1,26 @@
+.rbc-calendar {
+  height: 600px;
+}
+
+.rbc-event {
+  background-color: #3174ad;
+  border-radius: 5px;
+  color: white;
+  padding: 2px 5px;
+}
+
+.rbc-selected {
+  background-color: #265985;
+}
+
+.rbc-today {
+  background-color: #f0f8ff;
+}
+
+.rbc-event-label {
+  font-size: 0.85em;
+}
+
+.rbc-event-content {
+  font-size: 0.85em;
+}
