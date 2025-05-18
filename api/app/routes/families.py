@@ -8,7 +8,11 @@ from ..utils import get_current_user, hash_password  # Import hash_password
 router = APIRouter(prefix="/families", tags=["families"])
 
 @router.post("/", response_model=FamilyOut, status_code=status.HTTP_201_CREATED)
-def create_family(family: FamilyCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_family(family: FamilyCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):    
+    admin = db.query(User).filter(User.id == current_user.id).first()
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin user not found")
+    
     db_family = Family(name=family.name, admin_id=current_user.id)
     db.add(db_family)
     db.commit()

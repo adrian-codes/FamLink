@@ -30,6 +30,11 @@ class UserOut(BaseModel):
     class Config:
         from_attributes = True
 
+class AddFamilyMember(BaseModel):
+    username: str
+    email: EmailStr
+    temporary_password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -37,11 +42,6 @@ class Token(BaseModel):
 class Login(BaseModel):
     username: str
     password: str
-
-class AddFamilyMember(BaseModel):
-    username: str
-    email: EmailStr
-    temporary_password: str
 
 class ChoreBase(BaseModel):
     title: str
@@ -67,13 +67,20 @@ class EventBase(BaseModel):
     family_id: int
     start_time: datetime
     end_time: datetime
+    assignee_ids: List[int]
 
 class EventCreate(EventBase):
     pass
 
-class EventOut(EventBase):
+class EventOut(BaseModel):
     id: int
+    title: str
+    description: str | None = None
+    family_id: int
+    start_time: datetime
+    end_time: datetime
     created_at: datetime
+    assignees: Optional[List[UserOut]] = []
 
     class Config:
         from_attributes = True
