@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
-import '../../styles/calendar.css';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import '../../styles/calendar.css';
 
 interface Chore {
   id: number;
@@ -37,7 +36,7 @@ interface FamilyMember {
 const localizer = momentLocalizer(moment);
 
 export default function Dashboard() {
-  const { token, user, family, logout } = useAuth();
+  const { token, user, family } = useAuth();
   const router = useRouter();
   const [chores, setChores] = useState<Chore[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -198,24 +197,19 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteEvent = async (eventId: number) => {
+  const handleDeleteEvent = async (choreId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/events/${eventId}`, {
+      const response = await fetch(`http://localhost:8000/events/${choreId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) throw new Error('Failed to delete event');
-      setEvents(events.filter(e => e.id !== eventId));
+      setEvents(events.filter(e => e.id !== choreId));
     } catch (err: any) {
       setError(err.message);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
   };
 
   const getAssignedMemberName = (assignedToId: number) => {
@@ -232,247 +226,236 @@ export default function Dashboard() {
     }
   };
 
-  const calendarEvents = events.map(event => ({
-    id: event.id,
-    title: `${event.title} (${event.assignees && event.assignees.length > 0 ? event.assignees.map(a => a.username).join(', ') : 'No assignees'})`,
-    start: new Date(event.start_time),
-    end: new Date(event.end_time),
-  }));
-
-  if (!token || !user) {
-    router.push('/login');
-    return null;
-  }
-
-  if (!family) {
-    router.push('/families/new');
-    return null;
-  }
+  const calendarEvents = events
+    .map(event => {
+      console.log('Processing Event:', event);
+      const start = new Date(event.start_time);
+      const end = new Date(event.end_time);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.warn(`Skipping event with invalid dates: ${event.title}`, { start_time: event.start_time, end_time: event.end_time });
+        return null;
+      }
+      return {
+        id: event.id,
+        title: `${event.title} (${event.assignees && event.assignees.length > 0 ? event.assignees.map(a => a.username).join(', ') : 'No assignees'})`,
+        start,
+        end,
+      };
+    })
+    .filter(event => event !== null);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+    <div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-4xl font-extrabold text-gray-900">Welcome to Your FamLink Dashboard</h1>
+        <p className="mt-4 text-lg text-gray-600">Manage your family’s chores, schedules, and events here.</p>
+      </div>
+
+      {error && <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-lg">{error}</div>}
+
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a New Chore</h2>
+        <form onSubmit={handleCreateChore} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">Chore Title</label>
+              <input
+                id="title"
+                type="text"
+                required
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newChore.title}
+                onChange={(e) => setNewChore({ ...newChore, title: e.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700">Assign To</label>
+              <select
+                id="assigned_to_id"
+                required
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newChore.assigned_to_id}
+                onChange={(e) => setNewChore({ ...newChore, assigned_to_id: parseInt(e.target.value) })}
+              >
+                {familyMembers.map(member => (
+                  <option key={member.id} value={member.id}>{member.username}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900">Welcome to Your FamLink Dashboard</h1>
-            <p className="mt-4 text-lg text-gray-600">Manage your family’s chores, schedules, and events here.</p>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              id="description"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={newChore.description || ''}
+              onChange={(e) => setNewChore({ ...newChore, description: e.target.value })}
+            />
           </div>
-          <div className="space-x-2">
-            {isAdmin && (
-              <Link href="/families/manage" className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-blue-600 transition">
-                Manage Family
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-red-600 transition"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
+          >
+            Add Chore
+          </button>
+        </form>
+      </div>
 
-        {error && <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-lg">{error}</div>}
-
-        <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a New Chore</h2>
-          <form onSubmit={handleCreateChore} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Chore Title</label>
-                <input
-                  id="title"
-                  type="text"
-                  required
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newChore.title}
-                  onChange={(e) => setNewChore({ ...newChore, title: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700">Assign To</label>
-                <select
-                  id="assigned_to_id"
-                  required
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newChore.assigned_to_id}
-                  onChange={(e) => setNewChore({ ...newChore, assigned_to_id: parseInt(e.target.value) })}
-                >
-                  {familyMembers.map(member => (
-                    <option key={member.id} value={member.id}>{member.username}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      <div className="mt-12 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a New Event</h2>
+        <form onSubmit={handleCreateEvent} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
-                id="description"
+              <label htmlFor="event_title" className="block text-sm font-medium text-gray-700">Event Title</label>
+              <input
+                id="event_title"
+                type="text"
+                required
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={newChore.description || ''}
-                onChange={(e) => setNewChore({ ...newChore, description: e.target.value })}
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
               />
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
-            >
-              Add Chore
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-12 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a New Event</h2>
-          <form onSubmit={handleCreateEvent} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="event_title" className="block text-sm font-medium text-gray-700">Event Title</label>
-                <input
-                  id="event_title"
-                  type="text"
-                  required
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="assignees" className="block text-sm font-medium text-gray-700">Assignees</label>
-                <select
-                  id="assignees"
-                  multiple
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newEvent.assignee_ids}
-                  onChange={handleAssigneeChange}
-                >
-                  <option value={-1}>Whole Family</option>
-                  {familyMembers.map(member => (
-                    <option key={member.id} value={member.id}>{member.username}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="start_time" className="block text-sm font-medium text-gray-700">Start Time</label>
-                <input
-                  id="start_time"
-                  type="datetime-local"
-                  required
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newEvent.start_time}
-                  onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="end_time" className="block text-sm font-medium text-gray-700">End Time</label>
-                <input
-                  id="end_time"
-                  type="datetime-local"
-                  required
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={newEvent.end_time}
-                  onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
-                />
-              </div>
-            </div>
             <div>
-              <label htmlFor="event_description" className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
-                id="event_description"
+              <label htmlFor="assignees" className="block text-sm font-medium text-gray-700">Assignees</label>
+              <select
+                id="assignees"
+                multiple
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={newEvent.description || ''}
-                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                value={newEvent.assignee_ids}
+                onChange={handleAssigneeChange}
+              >
+                <option value={-1}>Whole Family</option>
+                {familyMembers.map(member => (
+                  <option key={member.id} value={member.id}>{member.username}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="start_time" className="block text-sm font-medium text-gray-700">Start Time</label>
+              <input
+                id="start_time"
+                type="datetime-local"
+                required
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newEvent.start_time}
+                onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
               />
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
-            >
-              Add Event
-            </button>
-          </form>
-        </div>
+            <div>
+              <label htmlFor="end_time" className="block text-sm font-medium text-gray-700">End Time</label>
+              <input
+                id="end_time"
+                type="datetime-local"
+                required
+                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newEvent.end_time}
+                onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="event_description" className="block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              id="event_description"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={newEvent.description || ''}
+              onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
+          >
+            Add Event
+          </button>
+        </form>
+      </div>
 
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">Your Chores</h2>
-          {chores.length === 0 ? (
-            <p className="mt-4 text-gray-600">No chores yet. Add one above!</p>
-          ) : (
-            <ul className="mt-4 space-y-4">
-              {chores.map((chore) => (
-                <li key={chore.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{chore.title}</h3>
-                    <p className="text-sm text-gray-600">{chore.description || 'No description'}</p>
-                    <p className="text-xs text-gray-500">Assigned to: {getAssignedMemberName(chore.assigned_to_id)}</p>
-                    <p className="text-xs text-gray-500">Created: {new Date(chore.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="space-x-2">
-                    <button
-                      onClick={() => handleToggleStatus(chore.id)}
-                      className={`px-3 py-1 rounded-full text-white ${chore.status ? 'bg-green-500' : 'bg-blue-500'} hover:opacity-80`}
-                    >
-                      {chore.status ? 'Completed' : 'Mark Done'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteChore(chore.id)}
-                      className="px-3 py-1 bg-red-500 text-white rounded-full hover:opacity-80"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">Family Schedule (List View)</h2>
-          {events.length === 0 ? (
-            <p className="mt-4 text-gray-600">No events yet. Add one above!</p>
-          ) : (
-            <ul className="mt-4 space-y-4">
-              {events.map((event) => (
-                <li key={event.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
-                    <p className="text-sm text-gray-600">{event.description || 'No description'}</p>
-                    <p className="text-xs text-gray-500">
-                      Assignees: {(event.assignees && event.assignees.length > 0) ? event.assignees.map(assignee => assignee.username).join(', ') : 'None'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      From: {new Date(event.start_time).toLocaleString()} To: {new Date(event.end_time).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-500">Created: {new Date(event.created_at).toLocaleDateString()}</p>
-                  </div>
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900">Your Chores</h2>
+        {chores.length === 0 ? (
+          <p className="mt-4 text-gray-600">No chores yet. Add one above!</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {chores.map((chore) => (
+              <li key={chore.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">{chore.title}</h3>
+                  <p className="text-sm text-gray-600">{chore.description || 'No description'}</p>
+                  <p className="text-xs text-gray-500">Assigned to: {getAssignedMemberName(chore.assigned_to_id)}</p>
+                  <p className="text-xs text-gray-500">Created: {new Date(chore.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="space-x-2">
                   <button
-                    onClick={() => handleDeleteEvent(event.id)}
-                    className="px-3 py-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    onClick={() => handleToggleStatus(chore.id)}
+                    className={`px-3 py-1 rounded-full text-white ${chore.status ? 'bg-green-500' : 'bg-blue-500'} hover:opacity-80`}
+                  >
+                    {chore.status ? 'Completed' : 'Mark Done'}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteChore(chore.id)}
+                    className="px-3 py-1 bg-red-500 text-white rounded-full hover:opacity-80"
                   >
                     Delete
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">Family Schedule (Calendar View)</h2>
-          <div className="bg-white p-6 rounded-lg shadow-md mt-4">
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900">Family Schedule (List View)</h2>
+        {events.length === 0 ? (
+          <p className="mt-4 text-gray-600">No events yet. Add one above!</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {events.map((event) => (
+              <li key={event.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
+                  <p className="text-sm text-gray-600">{event.description || 'No description'}</p>
+                  <p className="text-xs text-gray-500">
+                    Assignees: {(event.assignees && event.assignees.length > 0) ? event.assignees.map(assignee => assignee.username).join(', ') : 'None'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    From: {new Date(event.start_time).toLocaleString()} To: {new Date(event.end_time).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">Created: {new Date(event.created_at).toLocaleDateString()}</p>
+                </div>
+                <button
+                  onClick={() => handleDeleteEvent(event.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900">Family Schedule (Calendar View)</h2>
+        <div className="bg-white p-6 rounded-lg shadow-md mt-4 w-full">
+          {calendarEvents.length === 0 ? (
+            <p className="text-gray-600 text-center">No events to display in the calendar.</p>
+          ) : (
             <Calendar
               localizer={localizer}
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: 500 }}
+              style={{ height: 600, width: '100%' }}
               defaultView="month"
               onSelectEvent={(event) => alert(`Event: ${event.title}`)}
+              className="rbc-calendar"
             />
-          </div>
+          )}
         </div>
       </div>
     </div>

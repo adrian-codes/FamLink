@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 interface FamilyMember {
   id: number;
   username: string;
+  email: string;
 }
 
 export default function ManageFamily() {
@@ -143,84 +144,82 @@ export default function ManageFamily() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-gray-900 text-center">Manage Your Family</h1>
-        <p className="mt-4 text-lg text-gray-600 text-center">
-          Add or remove members from your family ({family.name}).
-        </p>
+    <div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <h1 className="text-4xl font-extrabold text-gray-900 text-center">Manage Your Family</h1>
+      <p className="mt-4 text-lg text-gray-600 text-center">
+        Add or remove members from your family ({family.name}).
+      </p>
 
-        {error && <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-lg">{error}</div>}
-        {success && <div className="mt-4 bg-green-50 text-green-700 p-4 rounded-lg">{success}</div>}
+      {error && <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-lg">{error}</div>}
+      {success && <div className="mt-4 bg-green-50 text-green-700 p-4 rounded-lg">{success}</div>}
 
-        <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a Family Member</h2>
-          <form onSubmit={handleAddMember} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
-              <input
-                id="username"
-                type="text"
-                required
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={newMember.username}
-                onChange={(e) => setNewMember({ ...newMember, username: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                id="email"
-                type="email"
-                required
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={newMember.email}
-                onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="temporary_password" className="block text-sm font-medium text-gray-700">Temporary Password</label>
-              <input
-                id="temporary_password"
-                type="password"
-                required
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={newMember.temporary_password}
-                onChange={(e) => setNewMember({ ...newMember, temporary_password: e.target.value })}
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
-            >
-              Add Member
-            </button>
-          </form>
-        </div>
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Add a Family Member</h2>
+        <form onSubmit={handleAddMember} className="space-y-4">
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+            <input
+              id="username"
+              type="text"
+              required
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={newMember.username}
+              onChange={(e) => setNewMember({ ...newMember, username: e.target.value })}
+            />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={newMember.email}
+              onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label htmlFor="temporary_password" className="block text-sm font-medium text-gray-700">Temporary Password</label>
+            <input
+              id="temporary_password"
+              type="password"
+              required
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={newMember.temporary_password}
+              onChange={(e) => setNewMember({ ...newMember, temporary_password: e.target.value })}
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform duration-200"
+          >
+            Add Member
+          </button>
+        </form>
+      </div>
 
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900">Family Members</h2>
-          {members.length === 0 ? (
-            <p className="mt-4 text-gray-600">No members yet. Add one above!</p>
-          ) : (
-            <ul className="mt-4 space-y-4">
-              {members.map((member) => (
-                <li key={member.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{member.username}</h3>
-                    <p className="text-sm text-gray-600">{member.email}</p>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveMember(member.id)}
-                    className="px-3 py-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900">Family Members</h2>
+        {members.length === 0 ? (
+          <p className="mt-4 text-gray-600">No members yet. Add one above!</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {members.map((member) => (
+              <li key={member.id} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">{member.username}</h3>
+                  <p className="text-sm text-gray-600">{member.email}</p>
+                </div>
+                <button
+                  onClick={() => handleRemoveMember(member.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
