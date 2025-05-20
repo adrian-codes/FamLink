@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: number;
@@ -12,13 +13,15 @@ interface User {
 interface Family {
   id: number;
   name: string;
+  admin_id: number | null;
 }
 
 interface AuthContextType {
   token: string | null;
   user: User | null;
   family: Family | null;
-  setToken: (token: string | null) => void;
+  isAdmin: boolean;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -28,9 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const router = useRouter();
 
   useEffect(() => {
-    // Load token from localStorage on initial render
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
       setToken(storedToken);
@@ -38,26 +42,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchUser = async (token: string) => {
+  useEffect(() => {
+    if (user) {
+      fetchFamily();
+    } else {
+      setFamily(null);
+      setIsAdmin(false);
+    }
+  }, [user]);
+
+  const fetchUser = async (authToken: string) => {
     try {
       const response = await fetch('http://localhost:8000/auth/me', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${authToken}`,
         },
       });
       if (!response.ok) throw new Error('Failed to fetch user');
       const userData = await response.json();
       setUser(userData);
-      if (userData.family_id) {
-        fetchFamily(token, userData.family_id);
-      }
     } catch (err) {
-      console.error('Failed to fetch user:', err);
-      setToken(null); // Clear token if user fetch fails
+      console.error('Error fetching user:', err);
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('token');
     }
   };
 
-  const fetchFamily = async (token: string, familyId: number) => {
+  const fetchFamily = async () => {
+    if (!token) return;
     try {
       const response = await fetch('http://localhost:8000/families/my-family', {
         headers: {
@@ -67,29 +80,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.ok) throw new Error('Failed to fetch family');
       const familyData = await response.json();
       setFamily(familyData);
+      setIsAdmin(familyData.admin_id != null && user!.id === familyData.admin_id);
     } catch (err) {
-      console.error('Failed to fetch family:', err);
+      console.error('Error fetching family:', err);
+      setFamily(null);
+      setIsAdmin(false);
     }
   };
 
-  const handleSetToken = (newToken: string | null) => {
-    setToken(newToken);
-    if (newToken) {
-      localStorage.setItem('token', newToken);
-      fetchUser(newToken);
-    } else {
-      localStorage.removeItem('token');
-      setUser(null);
-      setFamily(null);
+  const login = async (username: string, password: string) => {
+    try {
+      const response = await fetch('http://localhost:8000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
+      }
+
+      const data = await response.json();
+      const authToken = data.access_token;
+      setToken(authToken);
+      localStorage.setItem('token', authToken);
+      await fetchUser(authToken);
+    } catch (err: any) {
+      throw new Error(err.message || 'Login failed');
     }
   };
 
   const logout = () => {
-    handleSetToken(null);
+    setToken(null);
+    setUser(null);
+    setFamily(null);
+    setIsAdmin(false);
+    localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, family, setToken: handleSetToken, logout }}>
+    <AuthContext.Provider value={{ token, user, family, isAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -97,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
